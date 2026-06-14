@@ -1,132 +1,75 @@
+[update-readmes]   Mode: rewrite — migrating to template structure...
 # jail-sh
 
-<img src="logo.png" width="250" />
+[![Built with Ona](https://ona.com/build-with-ona.svg)](https://app.ona.com/#https://github.com/Interested-Deving-1896/jail-sh)
 
-`jail-sh` starts a Bash shell with filesystem access restricted by Linux Landlock. You define named profiles that specify which directories the shell can read or write — everything else is blocked.
+<!-- AI:start:what-it-does -->
+_Description pending._
+<!-- AI:end:what-it-does -->
 
-The main motivation: running LLM CLI tools (Claude Code, Gemini CLI, Aider, …) with their "trust me" / skip-permissions flags, but without actually trusting them with your whole filesystem. Give the agent access to your project directory and nothing else. 🤖
+## Architecture
 
-```bash
-jail-sh llm claude --dangerously-skip-permissions
-```
+<!-- AI:start:architecture -->
+_Architecture documentation pending._
+<!-- AI:end:architecture -->
 
-## 🤔 Why
+## Install
 
-Modern LLM CLIs are powerful — and they often ask you to disable their safety guardrails so they can read, write, and execute freely. That's fine for a controlled environment, but handing them unrestricted access to your home directory is not.
-
-`jail-sh` lets you keep the `--dangerously-skip-permissions` workflow while enforcing real kernel-level boundaries:
-
-- The agent can only see the directories you allow.
-- Reads of `~/.ssh`, `~/.gnupg`, other projects, shell history, credentials files, etc. are blocked at the kernel level.
-- No root required. No daemon. No container overhead.
-
-## 📋 Requirements
-
-- Linux kernel 5.13 or newer (Landlock support)
-- `bash`
-- a C compiler available as `cc`
-
-## 📦 Install
-
-System-wide:
+<!-- Add installation instructions here. This section is yours — the AI will not modify it. -->
 
 ```bash
-sudo install -m 0755 jail-sh /usr/local/bin/jail-sh
+git clone https://github.com/Interested-Deving-1896/jail-sh.git
+cd jail-sh
 ```
 
-Per-user (make sure `~/.local/bin` is in your `$PATH`):
+## Usage
 
-```bash
-install -d "$HOME/.local/bin"
-install -m 0755 jail-sh "$HOME/.local/bin/jail-sh"
+<!-- Add usage examples here. This section is yours — the AI will not modify it. -->
+
+## Configuration
+
+<!-- Document configuration options here. This section is yours — the AI will not modify it. -->
+
+## CI
+
+<!-- AI:start:ci -->
+_CI documentation pending._
+<!-- AI:end:ci -->
+
+## Mirror chain
+
+<!-- AI:start:mirror-chain -->
+This repo is maintained in [`Interested-Deving-1896/jail-sh`](https://github.com/Interested-Deving-1896/jail-sh) and mirrored through:
+
+```
+Interested-Deving-1896/jail-sh  ──►  OpenOS-Project-OSP/jail-sh  ──►  OpenOS-Project-Ecosystem-OOC/jail-sh
 ```
 
-Or use `install.sh`, which defaults to `/usr/local` and respects a `PREFIX` override:
+Changes flow downstream automatically via the hourly mirror chain in
+[`fork-sync-all`](https://github.com/Interested-Deving-1896/fork-sync-all).
+Direct commits to OSP or OOC are detected and opened as PRs back to `Interested-Deving-1896`.
+<!-- AI:end:mirror-chain -->
 
-```bash
-sudo bash install.sh
-PREFIX=~/.local bash install.sh
-```
+## Contributors
 
-## 🚀 Usage
+<!-- AI:start:contributors -->
+_Contributors pending._
+<!-- AI:end:contributors -->
 
-Run an LLM CLI inside the sandbox (single command, exits when done):
+## Origins
 
-```bash
-jail-sh llm claude --dangerously-skip-permissions
-jail-sh llm aider
-jail-sh llm gemini
-```
+<!-- AI:start:origins -->
+_Original project — no upstream fork._
+<!-- AI:end:origins -->
 
-Start an interactive sandboxed shell using a profile:
+## Resources
 
-```bash
-jail-sh work
-```
+<!-- AI:start:resources -->
+_No additional resource files found._
+<!-- AI:end:resources -->
 
-List all profiles defined in the config file:
+## License
 
-```bash
-jail-sh --list
-```
-
-## ⚙️ Config
-
-The config file lives at `~/.config/jail-sh/config.ini` (or `$XDG_CONFIG_HOME/jail-sh/config.ini` if that variable is set). On first run, `jail-sh` creates the file and exits — edit it to add a profile, then run again.
-
-Example config:
-
-```ini
-# Profile for running LLM CLI tools (Claude Code, Codex, …) on a project.
-[llm]
-start=$PWD
-rw=$PWD
-
-# Minimal /dev - specific devices only
-rw=/dev/null
-rw=/dev/zero
-rw=/dev/urandom
-rw=/dev/random
-rw=/dev/tty
-# /proc/self is a symlink; Landlock rules don't survive exec through it — use ro=/proc
-ro=/proc
-ro=/sys/devices/system/cpu
-
-# Network/name resolution
-ro=/etc/ssl
-ro=/etc/ca-certificates
-ro=/etc/resolv.conf
-ro=/etc/hosts
-ro=/etc/nsswitch.conf
-ro=/etc/passwd
-ro=/etc/group
-
-# Claude / Codex
-rw=~/.claude/
-rw=~/.codex/
-ro=~/.local/bin/claude
-ro=~/.npm-global/
-```
-
-Profile keys:
-
-| Key | Meaning |
-|-----|---------|
-| `start=DIR` | Working directory when the shell opens. Optional — defaults to the first `rw=` path. |
-| `rw=PATH` | Allow read, write, and execute under `PATH`. Can be repeated. |
-| `ro=PATH` | Allow read and execute under `PATH` (no writes). Can be repeated. |
-
-Path values support `~`, `$HOME`, and `$PWD` (expanded at runtime).
-
-## ⚠️ Limitations
-
-- **Filesystem only.** Landlock restricts filesystem access. Network, process, IPC, and syscall access are unrestricted — a sandboxed process can still make outbound connections or signal other processes.
-- **`/proc/self` is a symlink.** Landlock rules are applied before `exec`, so a rule for `/proc/self` resolves to the launcher's PID directory — not the child's. Use `ro=/proc` to cover the whole procfs.
-- **No inter-process isolation.** A sandboxed process can still read from or write to file descriptors it inherits (stdin, stdout, stderr, and any others left open by the parent).
-- **Root bypasses Landlock.** If the sandboxed process gains root (e.g. via a setuid binary it can execute), Landlock rules no longer apply.
-- Probably more..
-
-## 📝 Notes
-
-- The Landlock helper is compiled on first run and cached under `~/.cache/jail-sh/`.
-- A writable temp directory is created automatically at `~/.cache/jail-sh/tmp/<profile>/` and set as `$TMPDIR` inside the shell. Programs that write to `/tmp` will use this instead.
+<!-- AI:start:license -->
+[Zlib](https://github.com/Interested-Deving-1896/jail-sh/blob/main/LICENSE) © 2026 [Interested-Deving-1896](https://github.com/Interested-Deving-1896)
+<!-- AI:end:license -->
